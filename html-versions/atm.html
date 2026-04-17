@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rehan Bank ATM</title>
+    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        @theme {
+            --font-sans: 'Space Grotesk', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+        
+        body {
+            background-color: #0f172a;
+            color: white;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .atm-body {
+            background: linear-gradient(145deg, #1e293b, #334155);
+            box-shadow: 
+                20px 20px 60px #020617,
+                -20px -20px 60px #1e293b,
+                inset 2px 2px 5px rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .screen-container {
+            background-color: #020617;
+            box-shadow: 
+                inset 5px 5px 15px rgba(0,0,0,0.5),
+                inset -5px -5px 15px rgba(255,255,255,0.05);
+        }
+
+        .screen-glare {
+            background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, transparent 50%, rgba(255,255,255,0.02) 100%);
+        }
+
+        .crt-scanlines {
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 4px, 3px 100%;
+            pointer-events: none;
+        }
+
+        .metallic-btn {
+            background: linear-gradient(145deg, #475569, #1e293b);
+            box-shadow: 
+                3px 3px 6px #020617,
+                -3px -3px 6px #334155,
+                inset 1px 1px 2px rgba(255,255,255,0.1);
+            transition: all 0.2s;
+        }
+
+        .metallic-btn:active {
+            transform: translateY(2px);
+            box-shadow: 
+                inset 2px 2px 5px #020617,
+                inset -2px -2px 5px #334155;
+        }
+
+        .screen-pulse {
+            animation: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .processing-bar {
+            width: 0%;
+            animation: fill 2s linear forwards;
+        }
+
+        @keyframes fill {
+            to { width: 100%; }
+        }
+
+        [v-cloak] { display: none; }
+    </style>
+</head>
+<body class="font-sans">
+    <div class="w-full max-w-4xl p-4">
+        <!-- ATM Chassis -->
+        <div class="atm-body rounded-[40px] p-8 md:p-12 relative overflow-hidden flex flex-col md:flex-row gap-8">
+            
+            <!-- Left Side: Screen and Actions -->
+            <div class="flex-1">
+                <!-- Branding -->
+                <div class="flex items-center gap-3 mb-8 opacity-60">
+                    <i data-lucide="shield-check" class="w-6 h-6"></i>
+                    <h1 class="text-xs font-black tracking-[0.4em] uppercase">REHAN SECURE BANKING</h1>
+                </div>
+
+                <!-- Digital Screen Unit -->
+                <div class="screen-container rounded-3xl p-1 relative overflow-hidden border-4 border-slate-700 aspect-[4/3] flex flex-col">
+                    <div class="screen-glare absolute inset-0 z-10 pointer-events-none"></div>
+                    <div class="crt-scanlines absolute inset-0 z-20 opacity-30 pointer-events-none"></div>
+                    
+                    <div id="screen-content" class="relative z-30 flex-1 flex flex-col p-6 font-mono text-cyan-400">
+                        <!-- Content will be injected by JS -->
+                    </div>
+                </div>
+
+                <!-- Card/Receipt Slots -->
+                <div class="mt-8 grid grid-cols-2 gap-4">
+                    <div class="space-y-2">
+                        <div class="h-2 w-full bg-black rounded-full border border-slate-600 shadow-inner"></div>
+                        <p class="text-[8px] text-slate-500 uppercase tracking-widest text-center font-bold">CARD DEPOSIT</p>
+                    </div>
+                    <div class="space-y-2">
+                        <div class="h-2 w-full bg-black rounded-full border border-slate-600 shadow-inner"></div>
+                        <p class="text-[8px] text-slate-500 uppercase tracking-widest text-center font-bold">RECEIPT DISPENSER</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side: Interaction Panel -->
+            <div class="w-full md:w-80 flex flex-col gap-8">
+                <!-- Numpad -->
+                <div class="bg-slate-900/50 p-6 rounded-3xl border border-white/5 space-y-6">
+                    <div class="grid grid-cols-3 gap-3">
+                        <button onclick="handleNum(1)" class="metallic-btn h-14 rounded-xl font-bold text-xl">1</button>
+                        <button onclick="handleNum(2)" class="metallic-btn h-14 rounded-xl font-bold text-xl">2</button>
+                        <button onclick="handleNum(3)" class="metallic-btn h-14 rounded-xl font-bold text-xl">3</button>
+                        <button onclick="handleNum(4)" class="metallic-btn h-14 rounded-xl font-bold text-xl">4</button>
+                        <button onclick="handleNum(5)" class="metallic-btn h-14 rounded-xl font-bold text-xl">5</button>
+                        <button onclick="handleNum(6)" class="metallic-btn h-14 rounded-xl font-bold text-xl">6</button>
+                        <button onclick="handleNum(7)" class="metallic-btn h-14 rounded-xl font-bold text-xl">7</button>
+                        <button onclick="handleNum(8)" class="metallic-btn h-14 rounded-xl font-bold text-xl">8</button>
+                        <button onclick="handleNum(9)" class="metallic-btn h-14 rounded-xl font-bold text-xl">9</button>
+                        <button onclick="handleClear()" class="metallic-btn h-14 rounded-xl font-bold text-sm text-red-400">CLR</button>
+                        <button onclick="handleNum(0)" class="metallic-btn h-14 rounded-xl font-bold text-xl">0</button>
+                        <button onclick="handleAction()" class="metallic-btn h-14 rounded-xl font-bold text-sm text-green-400">ENT</button>
+                    </div>
+                </div>
+
+                <!-- Extra Info -->
+                <div class="mt-auto px-4 py-8 bg-black/20 rounded-2xl border border-white/5 text-center">
+                    <p class="text-[10px] text-slate-500 uppercase tracking-[0.3em] font-black">ENCRYPTION ACTIVE</p>
+                    <p class="text-[8px] text-slate-600 mt-1">VER 2.4.0 • SECURED BY AES-256</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State Management
+        let state = 'INITIAL';
+        let balance = 0;
+        let pin = '';
+        let pinInput = '';
+        let amountInput = '';
+        let errorMsg = '';
+        let result = null;
+
+        const screen = document.getElementById('screen-content');
+
+        function updateScreen() {
+            let html = '';
+            
+            if (state === 'INITIAL') {
+                html = `
+                    <div class="flex-1 flex flex-col items-center justify-center text-center space-y-6 fade-in">
+                        <div class="w-16 h-16 bg-cyan-500/10 rounded-full flex items-center justify-center screen-pulse">
+                            <i data-lucide="landmark" class="w-8 h-8"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-black uppercase tracking-widest text-white mb-2">Welcome to Rehan Bank</h2>
+                            <p class="text-xs text-cyan-400/60 uppercase tracking-widest">Initialization: Set Start Balance</p>
+                        </div>
+                        <div class="text-3xl font-black bg-cyan-500/10 px-8 py-4 rounded-xl border border-cyan-500/20">
+                            $ ${amountInput || '0'}
+                        </div>
+                        ${errorMsg ? `<p class="text-xs text-red-500 font-bold">${errorMsg}</p>` : ''}
+                    </div>
+                `;
+            } else if (state === 'CREATE_PIN') {
+                html = `
+                    <div class="flex-1 flex flex-col items-center justify-center text-center space-y-6 fade-in">
+                        <i data-lucide="key-round" class="w-12 h-12 mb-2 text-cyan-500"></i>
+                        <h2 class="text-xl font-black uppercase tracking-widest text-white">Security Step</h2>
+                        <p class="text-xs text-cyan-400/60 uppercase">Create a 4-Digit Security PIN</p>
+                        <div class="flex gap-4">
+                            ${[...Array(4)].map((_, i) => `
+                                <div class="w-8 h-12 border-b-4 ${pinInput.length > i ? 'border-cyan-400 text-cyan-400' : 'border-slate-800 text-slate-800'} flex items-center justify-center text-2xl">
+                                    ${pinInput.length > i ? '•' : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                        ${errorMsg ? `<p class="text-xs text-red-500 font-bold">${errorMsg}</p>` : ''}
+                    </div>
+                `;
+            } else if (state === 'LOGIN') {
+                html = `
+                    <div class="flex-1 flex flex-col items-center justify-center text-center space-y-6 fade-in">
+                        <i data-lucide="lock" class="w-12 h-12 mb-2 text-cyan-500"></i>
+                        <h2 class="text-xl font-black uppercase tracking-widest text-white">System Locked</h2>
+                        <p class="text-xs text-cyan-400/60 uppercase">Enter your 4-Digit Security PIN</p>
+                        <div class="flex gap-4">
+                            ${[...Array(4)].map((_, i) => `
+                                <div class="w-8 h-12 border-b-4 ${pinInput.length > i ? 'border-cyan-400 text-cyan-400' : 'border-slate-800 text-slate-800'} flex items-center justify-center text-2xl">
+                                    ${pinInput.length > i ? '•' : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                        ${errorMsg ? `<p class="text-xs text-red-500 font-bold">${errorMsg}</p>` : ''}
+                    </div>
+                `;
+            } else if (state === 'MENU') {
+                html = `
+                    <div class="flex-1 flex flex-col fade-in">
+                        <div class="flex justify-between items-center mb-8 pb-4 border-b border-cyan-500/20">
+                            <div>
+                                <p class="text-[10px] text-cyan-400/40 uppercase tracking-widest font-black">Authorized Session</p>
+                                <h2 class="text-lg font-black text-white">REHAN PRECISION DIV</h2>
+                            </div>
+                            <i data-lucide="fingerprint" class="w-8 h-8 opacity-40"></i>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 flex-1">
+                            <button onclick="setState('BALANCE')" class="bg-cyan-500/5 border border-cyan-500/10 rounded-2xl flex flex-col items-center justify-center gap-3 transition-all hover:bg-cyan-500/10 hover:border-cyan-500/30">
+                                <i data-lucide="wallet" class="w-6 h-6"></i>
+                                <span class="text-[10px] uppercase tracking-widest font-black">Balance</span>
+                            </button>
+                            <button onclick="setState('WITHDRAW')" class="bg-cyan-500/5 border border-cyan-500/10 rounded-2xl flex flex-col items-center justify-center gap-3 transition-all hover:bg-cyan-500/10 hover:border-cyan-500/30">
+                                <i data-lucide="arrow-down-right" class="w-6 h-6"></i>
+                                <span class="text-[10px] uppercase tracking-widest font-black">Withdraw</span>
+                            </button>
+                            <button onclick="setState('DEPOSIT')" class="bg-cyan-500/5 border border-cyan-500/10 rounded-2xl flex flex-col items-center justify-center gap-3 transition-all hover:bg-cyan-500/10 hover:border-cyan-500/30">
+                                <i data-lucide="arrow-up-right" class="w-6 h-6"></i>
+                                <span class="text-[10px] uppercase tracking-widest font-black">Deposit</span>
+                            </button>
+                            <button onclick="handleLogout()" class="bg-red-500/5 border border-red-500/10 rounded-2xl flex flex-col items-center justify-center gap-3 transition-all hover:bg-red-500/10 hover:border-red-500/30">
+                                <i data-lucide="log-out" class="w-6 h-6 text-red-400"></i>
+                                <span class="text-[10px] uppercase tracking-widest font-black text-red-500/60">Terminate</span>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            } else if (state === 'BALANCE') {
+                html = `
+                    <div class="flex-1 flex flex-col justify-center items-center text-center space-y-8 fade-in">
+                        <div class="space-y-2">
+                            <p class="text-[10px] text-cyan-400/40 uppercase tracking-[0.4em] font-black">Account Parity Check</p>
+                            <h2 class="text-3xl font-black text-white">CURRENT BALANCE</h2>
+                        </div>
+                        <div class="text-6xl font-black text-cyan-400">$ ${balance.toLocaleString()}</div>
+                        <button onclick="setState('MENU')" class="px-8 py-3 bg-cyan-500/10 border border-cyan-500/20 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-cyan-500/20 transition-all">Back to Menu</button>
+                    </div>
+                `;
+            } else if (state === 'WITHDRAW' || state === 'DEPOSIT') {
+                html = `
+                    <div class="flex-1 flex flex-col justify-center items-center text-center space-y-8 fade-in">
+                        <div class="space-y-4">
+                            <h2 class="text-2xl font-black uppercase text-white">${state} FUNDS</h2>
+                            <p class="text-xs text-cyan-400/60 uppercase tracking-widest">Enter Amount to ${state}</p>
+                        </div>
+                        <div class="text-5xl font-black bg-cyan-500/10 px-10 py-6 rounded-2xl border-2 border-cyan-500/20 min-w-[200px]">
+                            $ ${amountInput || '0'}
+                        </div>
+                        ${errorMsg ? `<p class="text-xs text-red-500 font-black">${errorMsg}</p>` : ''}
+                        <div class="flex gap-4">
+                            <button onclick="setState('MENU')" class="px-6 py-2 bg-slate-800 rounded-lg text-[10px] font-black uppercase tracking-widest">Cancel</button>
+                            <button onclick="handleAction()" class="px-6 py-2 bg-cyan-500 text-black rounded-lg text-[10px] font-black uppercase tracking-widest">Confirm</button>
+                        </div>
+                    </div>
+                `;
+            } else if (state === 'PROCESSING') {
+                html = `
+                    <div class="flex-1 flex flex-col items-center justify-center space-y-10 fade-in">
+                        <i data-lucide="refresh-cw" class="w-16 h-16 animate-spin text-cyan-600"></i>
+                        <div class="w-full max-w-xs space-y-4">
+                            <p class="text-xs font-black uppercase tracking-[0.4em] text-center">Encrypting Traffic...</p>
+                            <div class="h-1 bg-slate-900 rounded-full overflow-hidden">
+                                <div class="h-full bg-cyan-500 processing-bar"></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else if (state === 'SUCCESS') {
+                html = `
+                    <div class="flex-1 flex flex-col items-center justify-center text-center space-y-8 fade-in">
+                        <div class="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center">
+                            <i data-lucide="${result.type === 'success' ? 'check-circle' : 'alert-circle'}" class="w-10 h-10 ${result.type === 'success' ? 'text-green-400' : 'text-red-400'}"></i>
+                        </div>
+                        <div class="space-y-4 w-full">
+                            <h2 class="text-2xl font-black ${result.type === 'success' ? 'text-green-400' : 'text-red-400'} uppercase">
+                                TRANSACTION ${result.type === 'success' ? 'SUCCESS' : 'FAILED'}
+                            </h2>
+                            <div class="bg-white/5 border border-white/10 p-6 rounded-2xl">
+                                <p class="text-[10px] text-cyan-400/40 uppercase font-black mb-2 tracking-widest">Detail Trace</p>
+                                <p class="text-white font-bold">${result.message}</p>
+                            </div>
+                        </div>
+                        <button onclick="setState('MENU')" class="px-10 py-3 bg-cyan-500/10 border border-cyan-500/20 rounded-xl text-[10px] font-black uppercase tracking-[0.3em] hover:bg-cyan-500/20 transition-all">Proceed</button>
+                    </div>
+                `;
+            }
+
+            screen.innerHTML = html;
+            lucide.createIcons();
+        }
+
+        // Logic Handlers
+        function setState(s) {
+            state = s;
+            errorMsg = '';
+            amountInput = '';
+            pinInput = '';
+            updateScreen();
+        }
+
+        function handleNum(n) {
+            if (state === 'INITIAL' || state === 'WITHDRAW' || state === 'DEPOSIT') {
+                if (amountInput.length < 8) amountInput += n;
+            } else if (state === 'CREATE_PIN' || state === 'LOGIN') {
+                if (pinInput.length < 4) pinInput += n;
+            }
+            updateScreen();
+        }
+
+        function handleClear() {
+            if (state === 'CREATE_PIN' || state === 'LOGIN') pinInput = '';
+            else amountInput = '';
+            updateScreen();
+        }
+
+        function handleAction() {
+            if (state === 'INITIAL') {
+                const val = parseInt(amountInput);
+                if (isNaN(val) || val <= 0) {
+                    errorMsg = 'Invalid Balance';
+                } else {
+                    balance = val;
+                    setState('CREATE_PIN');
+                }
+            } else if (state === 'CREATE_PIN') {
+                if (pinInput.length === 4) {
+                    pin = pinInput;
+                    setState('LOGIN');
+                } else {
+                    errorMsg = 'PIN must be 4 digits';
+                }
+            } else if (state === 'LOGIN') {
+                if (pinInput === pin) {
+                    setState('MENU');
+                } else {
+                    errorMsg = 'Invalid Security Key';
+                    pinInput = '';
+                }
+            } else if (state === 'WITHDRAW') {
+                const val = parseInt(amountInput);
+                if (val > balance) {
+                    result = { message: 'INSUFFICIENT FUNDS. PARITY FAILED.', type: 'error' };
+                    setState('SUCCESS');
+                } else {
+                    processTransaction(() => {
+                        balance -= val;
+                        result = { message: `WITHDRAWN: $${val}. NEW_BAL: $${balance}`, type: 'success' };
+                    });
+                }
+            } else if (state === 'DEPOSIT') {
+                const val = parseInt(amountInput);
+                processTransaction(() => {
+                    balance += val;
+                    result = { message: `DEPOSITED: $${val}. NEW_BAL: $${balance}`, type: 'success' };
+                });
+            }
+            updateScreen();
+        }
+
+        function processTransaction(callback) {
+            setState('PROCESSING');
+            setTimeout(() => {
+                callback();
+                setState('SUCCESS');
+                updateScreen();
+            }, 2000);
+        }
+
+        function handleLogout() {
+            setState('LOGIN');
+        }
+
+        // Initialize Lucide and First Screen
+        updateScreen();
+    </script>
+</body>
+</html>
