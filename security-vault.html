@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AES-256 Security Vault</title>
+    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&family=Orbitron:wght@400;900&display=swap" rel="stylesheet">
+    <style>
+        @theme {
+            --font-sans: 'JetBrains Mono', monospace;
+            --font-display: 'Orbitron', sans-serif;
+        }
+
+        body {
+            background-color: #020202;
+            color: #22c55e;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+            background-image: radial-gradient(circle at center, #051a05 0%, #020202 100%);
+        }
+
+        .matrix-bg {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            background: 
+                linear-gradient(rgba(34, 197, 94, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(34, 197, 94, 0.05) 1px, transparent 1px);
+            background-size: 50px 50px;
+            opacity: 0.3;
+        }
+
+        .vault-card {
+            background: rgba(0, 0, 0, 0.9);
+            border: 2px solid rgba(34, 197, 94, 0.2);
+            box-shadow: 0 0 50px rgba(34, 197, 94, 0.1);
+            position: relative;
+        }
+
+        .vault-card::before {
+            content: '';
+            position: absolute;
+            inset: -2px;
+            background: linear-gradient(45deg, transparent, rgba(34, 197, 94, 0.5), transparent);
+            z-index: -1;
+            opacity: 0.3;
+            border-radius: 24px;
+        }
+
+        .scan-line {
+            position: absolute;
+            left: 0; width: 100%; height: 2px;
+            background: rgba(34, 197, 94, 0.5);
+            box-shadow: 0 0 20px #22c55e;
+            animation: scan 4s infinite linear;
+            z-index: 50;
+            pointer-events: none;
+        }
+
+        @keyframes scan {
+            0% { top: 0%; }
+            50% { top: 100%; }
+            100% { top: 0%; }
+        }
+
+        .numpad-btn {
+            background: rgba(34, 197, 94, 0.02);
+            border: 1px solid rgba(34, 197, 94, 0.1);
+            transition: all 0.2s;
+        }
+
+        .numpad-btn:hover {
+            background: rgba(34, 197, 94, 0.1);
+            border-color: rgba(34, 197, 94, 0.4);
+            color: white;
+            box-shadow: 0 0 15px rgba(34, 197, 94, 0.2);
+        }
+
+        .numpad-btn:active {
+            transform: scale(0.9);
+        }
+
+        .processing-bar {
+            background: linear-gradient(90deg, transparent, #22c55e, transparent);
+            background-size: 200% 100%;
+            animation: slide 2s infinite linear;
+        }
+
+        @keyframes slide {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+
+        .terminal-log {
+            font-size: 9px;
+            line-height: 1.5;
+            opacity: 0.4;
+        }
+
+        .glitch-text {
+            animation: glitch 1s infinite alternate;
+        }
+
+        @keyframes glitch {
+            0% { text-shadow: 2px 2px #ff0000; }
+            100% { text-shadow: -2px -2px #0000ff; }
+        }
+
+        [v-cloak] { display: none; }
+    </style>
+</head>
+<body class="font-sans">
+    <div class="matrix-bg"></div>
+    
+    <div class="w-full max-w-lg p-4 relative z-10 transition-all duration-700" id="main-container">
+        <div class="vault-card rounded-3xl overflow-hidden flex flex-col">
+            <div class="scan-line"></div>
+
+            <!-- Header -->
+            <div class="bg-green-500/5 p-6 border-b border-green-500/10 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <i data-lucide="terminal" class="w-5 h-5 animate-pulse"></i>
+                    <h1 class="text-xs font-black tracking-[0.4em] uppercase">AES-256 VAULT ACCESS</h1>
+                </div>
+                <div class="flex gap-2">
+                    <div class="w-2 h-2 rounded-full bg-red-900"></div>
+                    <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                </div>
+            </div>
+
+            <!-- Main Content Area -->
+            <div id="vault-view" class="p-8 min-h-[480px] flex flex-col">
+                <!-- Content injected by JS -->
+            </div>
+
+            <!-- Fake Console Log Footer -->
+            <div class="bg-black/80 p-4 border-t border-green-500/10 h-24 overflow-hidden">
+                <div class="terminal-log font-mono" id="log-content">
+                    <p class="text-blue-400 font-bold opacity-60">SYSTEM INITIALIZED</p>
+                    <p>BOOT_SEQUENCE: 0x4F12D2 [OK]</p>
+                    <p>ENCRYPTION_ENGINE: v4.2.1 [READY]</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Meta info -->
+        <div class="mt-8 flex justify-between items-center opacity-20 px-4">
+            <p class="text-[8px] font-black tracking-[0.6em]">REHAN SECURITY HARD-TECH</p>
+            <i data-lucide="cpu" class="w-8 h-8"></i>
+        </div>
+    </div>
+
+    <script>
+        let state = 'CREATE'; // CREATE | CONFIRM | SCANNING | LOGIN | GRANTED
+        let pin = '';
+        let pinInput = '';
+        let isSecure = true;
+        let progress = 0;
+        let error = '';
+
+        const view = document.getElementById('vault-view');
+        const logs = document.getElementById('log-content');
+
+        function log(msg, type = 'default') {
+            const p = document.createElement('p');
+            p.innerText = `> [${new Date().toLocaleTimeString()}] ${msg}`;
+            if (type === 'error') p.style.color = '#ef4444';
+            if (type === 'success') p.style.color = '#22c55e';
+            logs.prepend(p);
+        }
+
+        function handleInput(v) {
+            if (v === 'CLR') {
+                pinInput = '';
+            } else if (v === 'ENT') {
+                processState();
+            } else if (pinInput.length < 8) {
+                pinInput += v;
+            }
+            render();
+        }
+
+        function processState() {
+            error = '';
+            if (state === 'CREATE') {
+                if (pinInput.length < 4) {
+                    error = 'MINIMUM 4 DIGITS REQUIRED';
+                    log('SECURITY ERROR: INSUFFICIENT PIN LENGTH', 'error');
+                } else {
+                    pin = pinInput;
+                    pinInput = '';
+                    state = 'CONFIRM';
+                    log('PIN SEQUENCE CREATED. AWAITING CONFIRMATION.');
+                }
+            } else if (state === 'CONFIRM') {
+                if (pinInput === pin) {
+                    runScan(() => {
+                        state = 'LOGIN';
+                        pinInput = '';
+                        log('PARITY CONFIRMED. SYSTEM LOCKED.', 'success');
+                        render();
+                    });
+                } else {
+                    error = 'PARITY MISMATCH';
+                    pinInput = '';
+                    log('ERROR: PIN MISMATCH', 'error');
+                }
+            } else if (state === 'LOGIN') {
+                if (pinInput === pin) {
+                    runScan(() => {
+                        state = 'GRANTED';
+                        log('ACCESS GRANTED. WELCOME USER.', 'success');
+                        render();
+                    });
+                } else {
+                    error = 'ACCESS DENIED';
+                    pinInput = '';
+                    log('ATTEMPT FAILED: INVALID CREDENTIALS', 'error');
+                }
+            }
+            render();
+        }
+
+        function runScan(callback) {
+            state = 'SCANNING';
+            progress = 0;
+            render();
+            const interval = setInterval(() => {
+                progress += 5;
+                if (progress >= 100) {
+                    clearInterval(interval);
+                    callback();
+                }
+                render();
+            }, 50);
+        }
+
+        function render() {
+            let html = '';
+            if (state === 'SCANNING') {
+                html = `
+                    <div class="flex-1 flex flex-col items-center justify-center space-y-10">
+                        <div class="relative w-40 h-40">
+                            <div class="absolute inset-0 border-4 border-dashed border-green-500/20 rounded-full animate-spin"></div>
+                            <div class="absolute inset-0 flex items-center justify-center">
+                                <i data-lucide="fingerprint" class="w-20 h-20 animate-pulse"></i>
+                            </div>
+                        </div>
+                        <div class="w-full space-y-4">
+                            <p class="text-[10px] font-black tracking-[0.5em] text-center">BIOMETRIC_SCAN: ${progress}%</p>
+                            <div class="h-2 w-full bg-green-950 rounded-full overflow-hidden">
+                                <div class="h-full bg-green-500 shadow-[0_0_10px_#22c55e]" style="width: ${progress}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else if (state === 'GRANTED') {
+                html = `
+                    <div class="flex-1 flex flex-col items-center justify-center text-center space-y-10">
+                        <div class="w-32 h-32 bg-green-500 rounded-full flex items-center justify-center shadow-[0_0_60px_rgba(34,197,94,0.4)]">
+                            <i data-lucide="shield-check" class="w-16 h-16 text-black"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-4xl font-black text-white tracking-tighter mb-2 font-display">AUTHORIZED</h2>
+                            <p class="text-xs font-bold tracking-[0.4em] opacity-40">PROTOCOL BYPASS SECURE</p>
+                        </div>
+                        <button onclick="state='CREATE'; pin=''; pinInput=''; render();" class="px-10 py-3 bg-red-500/10 text-red-500 border border-red-500/20 rounded-lg text-xs font-bold tracking-widest hover:bg-red-500/20">LOG OUT</button>
+                    </div>
+                `;
+            } else {
+                html = `
+                    <div class="flex-1 flex flex-col space-y-10">
+                        <div class="flex flex-col items-center gap-6">
+                            <i data-lucide="${state === 'CREATE' ? 'key' : state === 'CONFIRM' ? 'refresh-cw' : 'lock'}" class="w-12 h-12"></i>
+                            <div class="text-center">
+                                <h2 class="text-lg font-black tracking-widest text-white uppercase font-display">
+                                    ${state === 'CREATE' ? 'SET MASTER KEY' : state === 'CONFIRM' ? 'VERIFY KEY PARITY' : 'ENTER ACCESS KEY'}
+                                </h2>
+                                <p class="text-[9px] font-bold opacity-30 mt-1 uppercase tracking-[0.3em]">REHAN ENCRYPTION NODE</p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4 flex flex-col items-center">
+                            <div class="flex gap-4">
+                                ${[...Array(4)].map((_, i) => `
+                                    <div class="w-12 h-16 border-b-4 ${pinInput.length > i ? 'border-green-500 text-green-500 shadow-[0_10px_10px_-10px_#22c55e]' : 'border-zinc-800 text-zinc-900'} flex items-center justify-center text-4xl">
+                                        ${pinInput.length > i ? (isSecure ? '•' : pinInput[i]) : ''}
+                                    </div>
+                                `).join('')}
+                            </div>
+                            ${error ? `<p class="text-[9px] font-black tracking-widest text-red-500 bg-red-500/10 px-4 py-1 rounded border border-red-500/20 animate-bounce">${error}</p>` : ''}
+                        </div>
+
+                        <div class="grid grid-cols-3 gap-3">
+                            ${[1,2,3,4,5,6,7,8,9, 'CLR', 0, 'ENT'].map(v => `
+                                <button onclick="handleInput('${v}')" class="numpad-btn h-14 rounded-xl flex items-center justify-center font-bold text-xl ${v === 'ENT' ? 'bg-green-500/20 text-green-400' : v === 'CLR' ? 'text-red-400' : ''}">
+                                    ${v}
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+            view.innerHTML = html;
+            lucide.createIcons();
+        }
+
+        render();
+
+        // Keyboard Support
+        window.addEventListener('keydown', (e) => {
+            if (e.key >= '0' && e.key <= '9') handleInput(e.key);
+            else if (e.key === 'Enter') handleInput('ENT');
+            else if (e.key === 'Backspace') handleInput('CLR');
+        });
+    </script>
+</body>
+</html>
